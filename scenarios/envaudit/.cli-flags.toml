@@ -1,0 +1,10 @@
+[flags.port]
+env = "PORT"
+aliases = ["port"]
+type = "integer"
+default = 3000
+
+[flags.secret]
+env = "API_SECRET"
+aliases = ["secret"]
+type = "string"

@@ -1,0 +1,24 @@
+[parse]
+command_env = "DEMO_COMMAND"
+
+[flags.global]
+env = "GLOBAL"
+aliases = ["global"]
+type = "string"
+default = "g"
+
+[commands.build]
+env = "CMD_BUILD"
+
+[commands.build.flags.target]
+env = "BUILD_TARGET"
+aliases = ["target"]
+type = "string"
+
+[commands.deploy]
+env = "CMD_DEPLOY"
+
+[commands.deploy.flags.region]
+env = "DEPLOY_REGION"
+aliases = ["region"]
+type = "string"
