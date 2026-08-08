@@ -1,0 +1,84 @@
+name: PR 33 Rust smoke differential
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rust-differential:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout harness
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Checkout exact main baseline used by PR merge
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ORESoftware/flags-2-env
+          ref: affde1740dbebcc6a22f09bf58bcbac90af1f7ee
+          path: external/main-baseline
+          persist-credentials: false
+
+      - name: Checkout exact synthesized PR 33 merge
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ORESoftware/flags-2-env
+          ref: 2089fd6adb5679f74710d3465856ada9f9458401
+          path: external/pr33-merge
+          persist-credentials: false
+
+      - name: Compare Rust client smoke outcomes
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_smoke() {
+            local dir="$1" log="$2"
+            set +e
+            (cd "$dir" && bash scripts/docker-check-new-clients.sh --only rust) >"$log" 2>&1
+            local status=$?
+            set -e
+            printf '%s' "$status"
+          }
+
+          main_log="$RUNNER_TEMP/main-rust.log"
+          candidate_log="$RUNNER_TEMP/candidate-rust.log"
+          main_status="$(run_smoke external/main-baseline "$main_log")"
+          candidate_status="$(run_smoke external/pr33-merge "$candidate_log")"
+
+          printf 'main_status=%s\ncandidate_status=%s\n' "$main_status" "$candidate_status"
+          {
+            echo '## PR 33 Rust smoke differential'
+            echo
+            echo "- main baseline: $main_status"
+            echo "- PR 33 merge: $candidate_status"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [[ "$main_status" == 0 && "$candidate_status" != 0 ]]; then
+            echo 'PR 33 introduces a Rust client regression' >&2
+            tail -n 80 "$candidate_log" >&2
+            exit 1
+          fi
+
+          if [[ "$main_status" != 0 && "$candidate_status" != 0 ]]; then
+            signature='left: Some("env")'
+            expected='right: Some("8181")'
+            if grep -Fq "$signature" "$main_log" && grep -Fq "$expected" "$main_log" \
+              && grep -Fq "$signature" "$candidate_log" && grep -Fq "$expected" "$candidate_log"; then
+              echo 'Both exact revisions fail with the same pre-existing Rust apply-precedence assertion.'
+              exit 0
+            fi
+            echo 'Both revisions fail, but not with the same known assertion.' >&2
+            echo '--- main ---' >&2
+            tail -n 80 "$main_log" >&2
+            echo '--- candidate ---' >&2
+            tail -n 80 "$candidate_log" >&2
+            exit 1
+          fi
+
+          echo 'Candidate Rust smoke is not worse than its exact main baseline.'
