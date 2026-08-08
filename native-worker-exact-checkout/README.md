@@ -2,7 +2,7 @@
 
 This test-org lane independently consumes the candidate native worker boundary
 from `gha-indie-worker/gha-indie-worker.rs` at exact commit
-`4ff9865bc71c047bbfad8fdf797a3545b19f85de`.
+`23244abcb2c3a5bd8aa60588ff64fce3efd5445c`.
 
 On fixed Ubuntu 24.04, Windows Server 2025, and macOS 15 references, it:
 
