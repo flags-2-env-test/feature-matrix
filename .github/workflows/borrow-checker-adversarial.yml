@@ -11,7 +11,7 @@ on:
       product_sha:
         description: Exact ORESoftware/flags-2-env commit to certify
         required: false
-        default: d5a09c37e8b2a041dd2590b72b1129d1dbf28d42
+        default: b3b40f4fce95175b95b2d435d51d428593c1aff9
         type: string
 
 permissions:
@@ -22,7 +22,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  PRODUCT_SHA: ${{ github.event.inputs.product_sha || 'd5a09c37e8b2a041dd2590b72b1129d1dbf28d42' }}
+  PRODUCT_SHA: ${{ github.event.inputs.product_sha || 'b3b40f4fce95175b95b2d435d51d428593c1aff9' }}
 
 jobs:
   adversarial-contract:

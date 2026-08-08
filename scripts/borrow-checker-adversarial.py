@@ -118,6 +118,62 @@ int main(void) {
 }
 """,
         },
+        {
+            # One hop further than the case above: nothing here dereferences
+            # its own parameter, so a requirement that does not propagate
+            # upward leaves the fault two frames below the caller.
+            "name": "transitive-null-dereference-through-call-chain",
+            "expected_rule": "null-deref",
+            "source": """\
+#include <stdlib.h>
+
+static void innermost(const char *p) {
+  (void)*p;
+}
+
+static void middle(const char *p) {
+  innermost(p);
+}
+
+static void outer(const char *p) {
+  middle(p);
+}
+
+int main(void) {
+  char *p = (char *)malloc(4);
+  outer(p);
+  free(p);
+  return 0;
+}
+""",
+        },
+        {
+            # The negative partner: a ternary guards exactly as an if does.
+            # This is the shape parser.c uses to pass an optionally-allocated
+            # table into a helper that dereferences it, so a checker that
+            # misses it reports defects in correct code.
+            "name": "ternary-guard-is-respected",
+            "expected_rule": None,
+            "source": """\
+#include <stdlib.h>
+#include <string.h>
+
+static size_t strict_len(const char *p) {
+  return strlen(p);
+}
+
+static size_t optional_len(const char *maybe) {
+  return maybe ? strict_len(maybe) : 0;
+}
+
+int main(void) {
+  char *p = (char *)malloc(4);
+  size_t n = optional_len(p);
+  free(p);
+  return (int)n;
+}
+""",
+        },
     ]
 
     results: list[dict[str, Any]] = []

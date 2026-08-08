@@ -4,15 +4,22 @@ This independent `flags-2-env-test` lane checks an exact
 `ORESoftware/flags-2-env` commit without using the product repository's own
 workflow definitions or a vendored submodule that may predate the checker.
 
-Initial product candidate:
+Repaired product candidate:
+
+```text
+b3b40f4fce95175b95b2d435d51d428593c1aff9
+```
+
+Initial (defective) candidate, retained for the record:
 
 ```text
 d5a09c37e8b2a041dd2590b72b1129d1dbf28d42
 ```
 
 The candidate's native sanitizer matrix, custom self-test, Kani proof, CBMC
-model, and Z3 obligations are already green. Those gates do not currently
-exercise two analyzer-boundary failures found during adversarial review.
+model, and Z3 obligations were green throughout — including while all three
+bypasses below were live. That is the point of this lane: those gates prove
+the analyzer's abstract state machine, not the analyzer's boundaries.
 
 ## Required black-box cases
 
@@ -25,11 +32,23 @@ disposable C translation units and requires:
    to suppress `error[leak]`;
 3. a comment with an empty waiver reason not to suppress `error[leak]`; and
 4. a genuine C comment with a non-empty justification to retain the documented
-   waiver behavior.
+   waiver behavior;
+5. an unchecked allocation passed through a chain of forwarding helpers
+   (`outer` → `middle` → `innermost`, where only the last dereferences) to
+   produce `error[null-deref]`; and
+6. a ternary guard (`p ? use(p) : 0`) to be recognized as a guard, producing
+   no diagnostic.
 
-The first candidate is expected to fail cases 1–3. This PR must remain draft and
-unmerged until the product PR is repaired, this workflow is repinned to its new
-exact commit, and both fixed platform jobs pass.
+Cases 5 and 6 were added when the repair landed, and they are not the same
+kind of test. Case 5 is a defect case: the initial candidate fails it, because
+the non-null obligation died at the first call hop. Case 6 is a regression
+guard: both candidates pass it, and it exists because the first attempt at
+case 5 introduced a false positive on real `parser.c` code — a ternary guard
+the analyzer did not model. Enforcing 5 without 6 reports defects in correct
+code.
+
+Recorded outcome: the initial candidate fails cases 1, 2, 3, and 5 and passes
+4 and 6. The repaired candidate passes all six on both platforms.
 
 ## Evidence and isolation
 
