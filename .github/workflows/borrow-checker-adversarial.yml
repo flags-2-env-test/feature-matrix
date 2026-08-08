@@ -1,0 +1,105 @@
+name: Borrow-checker adversarial promotion gate
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/borrow-checker-adversarial.yml
+      - scripts/borrow-checker-adversarial.py
+      - docs/borrow-checker-adversarial.md
+  workflow_dispatch:
+    inputs:
+      product_sha:
+        description: Exact ORESoftware/flags-2-env commit to certify
+        required: false
+        default: d5a09c37e8b2a041dd2590b72b1129d1dbf28d42
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: borrow-checker-adversarial-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  PRODUCT_SHA: ${{ github.event.inputs.product_sha || 'd5a09c37e8b2a041dd2590b72b1129d1dbf28d42' }}
+
+jobs:
+  adversarial-contract:
+    name: Adversarial contract / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15]
+    steps:
+      - name: Require an immutable product pin
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$PRODUCT_SHA" =~ ^[0-9a-f]{40}$ ]]
+
+      - name: Check out the independent test-org harness
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          show-progress: false
+
+      - name: Check out the exact flags-2-env candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ORESoftware/flags-2-env
+          ref: ${{ env.PRODUCT_SHA }}
+          path: product
+          fetch-depth: 1
+          persist-credentials: false
+          show-progress: false
+
+      - name: Verify the exact candidate and local tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C product rev-parse HEAD)" = "$PRODUCT_SHA"
+          command -v python3
+          command -v clang
+          python3 --version
+          clang --version
+          git -C product diff --check
+          git diff --check
+
+      - name: Run the candidate's own checker self-test
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPYCACHEPREFIX="$RUNNER_TEMP/python-cache" \
+            python3 product/tools/borrow-checker/borrow_check.py \
+              --clang clang \
+              --self-test
+
+      - name: Run the independent non-skipping adversarial contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPYCACHEPREFIX="$RUNNER_TEMP/python-cache" \
+            python3 scripts/borrow-checker-adversarial.py \
+              --product product \
+              --product-sha "$PRODUCT_SHA" \
+              --clang clang
+
+      - name: Require clean tracked checkouts
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+          test -z "$(git -C product status --porcelain=v1 --untracked-files=all)"
+
+      - name: Upload commit-addressed adversarial evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: borrow-checker-adversarial-${{ matrix.os }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/borrow-checker-adversarial-evidence.json
+          if-no-files-found: warn
+          retention-days: 14
