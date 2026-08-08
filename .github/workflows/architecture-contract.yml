@@ -1,0 +1,39 @@
+name: architecture contract
+
+on:
+  pull_request:
+    paths:
+      - ".gitmodules"
+      - ".zpkg.toml"
+      - "architecture-contract/**"
+      - ".github/workflows/architecture-contract.yml"
+  push:
+    branches: [main]
+    paths:
+      - ".gitmodules"
+      - ".zpkg.toml"
+      - "architecture-contract/**"
+      - ".github/workflows/architecture-contract.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: architecture-contract-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  conformance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check out independent test fixture
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          show-progress: false
+          submodules: false
+
+      - name: Verify one adopted Zed/Git checkout
+        run: python3 architecture-contract/test_contract.py
