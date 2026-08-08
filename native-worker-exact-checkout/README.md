@@ -11,11 +11,19 @@ On fixed Ubuntu 24.04, Windows Server 2025, and macOS 15 references, it:
 2. verifies the pinned worker commit and machine-readable policy;
 3. runs the worker handoff, negative, checkout, and scheduler-integration corpus
    from outside the worker repository;
-4. asks the worker boundary to clone this test repository's pull-request head by
-   exact SHA without a branch, tag, embedded credential, or fallback transport;
-5. ratchets requested SHA equals resolved detached `HEAD`, one exact `origin`, no
-   submodule gitlinks, and digest-bound evidence; and
-6. verifies both tracked source trees remain unchanged.
+4. asks the worker boundary to clone this canary repository's exact pull-request
+   head and requires `submodule_gitlink_forbidden`, preserving its real gitlinks
+   as a cross-platform negative fixture;
+5. asks the same boundary to clone submodule-free
+   `flags-2-env-test/sops-just` at exact commit
+   `933a239388449901bf8cccfd3db5c4d79fdec039` and requires success;
+6. ratchets requested SHA equals resolved detached `HEAD`, one exact `origin`, no
+   submodule gitlinks in the positive fixture, and digest-bound evidence; and
+7. verifies both tracked source trees remain unchanged.
+
+This split matters: the policy does not silently ignore a repository feature it
+does not support, while a separate fixture proves that the supported path still
+works on all three operating-system references.
 
 The lane does not use the GitHub PAT, Linear token, Cloudflare token, R2 keys,
 repository secrets, signing material, or a persistent external service.
@@ -34,4 +42,5 @@ release-signing readiness.
 - Scheduler and lease prerequisite: `gha-indie-worker/gha-indie-worker.rs#21`
 - Typed dispatch prerequisite: `gha-indie-worker/gha-indie-worker.rs#14`
 - Program tracker: `gha-indie-worker/gha-indie-worker.rs#15`
+- AI-agent-bridge review queue: `ORESoftware/ai-agent-bridge.rs#121`
 - Linear: `DEN-2582`, `DEN-2583`, and `DEN-2586`
