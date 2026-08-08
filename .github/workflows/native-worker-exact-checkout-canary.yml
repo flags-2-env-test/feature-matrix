@@ -22,6 +22,8 @@ concurrency:
 
 env:
   GHA_INDIE_WORKER_SHA: 23244abcb2c3a5bd8aa60588ff64fce3efd5445c
+  SUCCESS_FIXTURE_REPOSITORY: https://github.com/flags-2-env-test/sops-just.git
+  SUCCESS_FIXTURE_SHA: 933a239388449901bf8cccfd3db5c4d79fdec039
   PYTHONDONTWRITEBYTECODE: "1"
 
 jobs:
@@ -73,6 +75,9 @@ jobs:
           assert policy['checkout']['exactLowercaseCommitSha'] is True;
           assert policy['checkout']['fallbackBranchOrTag'] is False"
 
+      - name: Compile independent canary
+        run: python -m py_compile native-worker-exact-checkout/run_canary.py
+
       - name: Run worker handoff and checkout corpus externally
         working-directory: .gha-indie-worker
         run: >-
@@ -81,26 +86,29 @@ jobs:
           tests/test_native_worker_checkout.py
           tests/test_native_worker_handoff_integration.py
 
-      - name: Checkout this consumer through the worker boundary
+      - name: Prove gitlinks fail closed and a clean fixture succeeds
         run: >-
-          python .gha-indie-worker/tests/live_native_worker_checkout.py
-          --repository-url "https://github.com/${{ github.repository }}.git"
-          --commit-sha "${{ github.event.pull_request.head.sha || github.sha }}"
-          --workspace "${{ runner.temp }}/external-native-worker-checkout"
+          python native-worker-exact-checkout/run_canary.py
+          --worker-dir .gha-indie-worker
+          --submodule-repository-url "https://github.com/${{ github.repository }}.git"
+          --submodule-commit-sha "${{ github.event.pull_request.head.sha || github.sha }}"
+          --success-repository-url "${{ env.SUCCESS_FIXTURE_REPOSITORY }}"
+          --success-commit-sha "${{ env.SUCCESS_FIXTURE_SHA }}"
+          --workspace-root "${{ runner.temp }}/external-native-worker-canary"
           --evidence "${{ runner.temp }}/external-native-worker-evidence.json"
           --platform "${{ matrix.platform }}"
           --architecture "${{ matrix.architecture }}"
 
-      - name: Ratchet consumer evidence
+      - name: Ratchet positive checkout evidence
         run: >-
           python -c "import json,os,pathlib;
           value=json.loads((pathlib.Path(os.environ['RUNNER_TEMP'])/'external-native-worker-evidence.json').read_text(encoding='utf-8'));
-          expected='${{ github.event.pull_request.head.sha || github.sha }}';
+          expected=os.environ['SUCCESS_FIXTURE_SHA'];
           assert value['requestedCommitSha']==expected==value['resolvedCommitSha'];
           assert value['detachedHead'] is True;
           assert value['remotes']==['origin'];
           assert value['submoduleGitlinks']==[];
-          assert value['originUrl']=='https://github.com/${{ github.repository }}.git';
+          assert value['originUrl']==os.environ['SUCCESS_FIXTURE_REPOSITORY'];
           assert value['evidenceDigest'].startswith('sha256:')"
 
       - name: Verify both tracked checkouts remain unchanged
