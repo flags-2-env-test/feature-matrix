@@ -14,6 +14,7 @@ EXPECTED_SHA256 = "b655f5243da5be0d5e46c3e1e1e48fc96bf078f74e53fd47872464b4fcf27
 
 def main() -> None:
     encoded = "".join(PAYLOAD.read_text(encoding="ascii").split())
+    encoded += "=" * (-len(encoded) % 4)
     source = gzip.decompress(base64.b64decode(encoded, validate=True))
     observed = hashlib.sha256(source).hexdigest()
     if observed != EXPECTED_SHA256:
