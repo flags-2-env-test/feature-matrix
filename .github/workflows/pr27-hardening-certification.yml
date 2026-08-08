@@ -1,0 +1,233 @@
+name: PR 27 hardening certification
+
+on:
+  workflow_dispatch:
+    inputs:
+      producer_sha:
+        description: Full immutable ORESoftware/flags-2-env commit SHA to certify
+        required: true
+        type: string
+  pull_request:
+    paths:
+      - ".github/workflows/pr27-hardening-certification.yml"
+      - "pr27-hardening/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr27-hardening-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      producer_sha: ${{ steps.candidate.outputs.producer_sha }}
+    steps:
+      - name: Check out certification harness
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+          show-progress: false
+
+      - name: Select immutable producer candidate
+        id: candidate
+        env:
+          DISPATCH_SHA: ${{ inputs.producer_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${DISPATCH_SHA:-}" ]]; then
+            candidate="$DISPATCH_SHA"
+          else
+            candidate="$(tr -d '[:space:]' < pr27-hardening/candidate.sha)"
+          fi
+          [[ "$candidate" =~ ^[0-9a-f]{40}$ ]] || {
+            echo "candidate must be a full lowercase commit SHA" >&2
+            exit 1
+          }
+          echo "producer_sha=$candidate" >> "$GITHUB_OUTPUT"
+          echo "Certifying ORESoftware/flags-2-env@$candidate" >> "$GITHUB_STEP_SUMMARY"
+
+  native:
+    name: strict native build (${{ matrix.os }})
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - name: Check out exact producer candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: ORESoftware/flags-2-env
+          ref: ${{ needs.prepare.outputs.producer_sha }}
+          persist-credentials: false
+          show-progress: false
+
+      - name: Strict build and smoke (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build
+          cc -std=c99 -Wall -Wextra -Wpedantic -Werror \
+            -Isrc src/parser.c src/terminal_context.c src/main.c \
+            -o build/flags2env
+          ./build/flags2env --help >/dev/null
+          ./build/flags2env context |
+            python3 -c 'import json,sys; p=json.load(sys.stdin); assert p["version"] == 1'
+
+      - name: Strict build and smoke (Windows MSVC)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          New-Item -ItemType Directory -Force build | Out-Null
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $install = & $vswhere -latest -property installationPath
+          if (-not $install) { throw "Visual Studio installation not found" }
+          $devcmd = Join-Path $install "Common7\Tools\VsDevCmd.bat"
+          $command = @(
+            "`"$devcmd`" -arch=x64 -host_arch=x64",
+            "cl /nologo /std:c11 /W4 /WX /D_CRT_SECURE_NO_WARNINGS",
+            "/Isrc src\parser.c src\terminal_context.c src\main.c",
+            "/Febuild\flags2env.exe shell32.lib"
+          ) -join " && "
+          cmd.exe /d /s /c $command
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          & .\build\flags2env.exe --help | Out-Null
+          $context = & .\build\flags2env.exe context | ConvertFrom-Json
+          if ($context.version -ne 1) { throw "unexpected context schema" }
+
+  emscripten:
+    name: Emscripten/browser portability
+    needs: prepare
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Check out exact producer candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: ORESoftware/flags-2-env
+          ref: ${{ needs.prepare.outputs.producer_sha }}
+          persist-credentials: false
+          show-progress: false
+
+      - name: Install Emscripten
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends --yes emscripten
+
+      - name: Build browser WebAssembly package
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash clients/browser/build.sh "$RUNNER_TEMP/browser-dist"
+          test -s "$RUNNER_TEMP/browser-dist/flags2env.mjs"
+          test -s "$RUNNER_TEMP/browser-dist/flags2env.wasm"
+
+  producer-suite:
+    name: producer suite on current feature merge
+    needs: prepare
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out exact producer candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: ORESoftware/flags-2-env
+          ref: ${{ needs.prepare.outputs.producer_sha }}
+          persist-credentials: false
+          show-progress: false
+
+      - name: Install shell test dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends --yes zsh
+
+      - name: Run strict producer tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          make clean
+          make CFLAGS='-std=c99 -Wall -Wextra -Wpedantic -Werror -O2' test
+          bash scripts/audit-client-packaging.sh
+
+  adversarial:
+    name: independent semantic and security checks
+    needs: prepare
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Check out certification harness
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          path: harness
+          persist-credentials: false
+          show-progress: false
+
+      - name: Check out exact producer candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: ORESoftware/flags-2-env
+          ref: ${{ needs.prepare.outputs.producer_sha }}
+          path: producer
+          persist-credentials: false
+          show-progress: false
+
+      - name: Build strict candidate
+        working-directory: producer
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build
+          cc -std=c99 -Wall -Wextra -Wpedantic -Werror \
+            -Isrc src/parser.c src/terminal_context.c src/main.c \
+            -o build/flags2env
+
+      - name: Run independent hardening suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 harness/pr27-hardening/test_pr27.py \
+            --binary "$GITHUB_WORKSPACE/producer/build/flags2env" \
+            --library "$GITHUB_WORKSPACE/producer"
+
+  certified:
+    name: independent certification summary
+    if: always()
+    needs: [prepare, native, emscripten, producer-suite, adversarial]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Enforce all evidence
+        env:
+          NATIVE: ${{ needs.native.result }}
+          EMSCRIPTEN: ${{ needs.emscripten.result }}
+          PRODUCER: ${{ needs.producer-suite.result }}
+          ADVERSARIAL: ${{ needs.adversarial.result }}
+          SHA: ${{ needs.prepare.outputs.producer_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "### flags-2-env PR 27 independent certification"
+            echo
+            echo "- Candidate: \`$SHA\`"
+            echo "- Native: $NATIVE"
+            echo "- Emscripten: $EMSCRIPTEN"
+            echo "- Producer suite: $PRODUCER"
+            echo "- Adversarial: $ADVERSARIAL"
+          } >> "$GITHUB_STEP_SUMMARY"
+          test "$NATIVE" = success
+          test "$EMSCRIPTEN" = success
+          test "$PRODUCER" = success
+          test "$ADVERSARIAL" = success
