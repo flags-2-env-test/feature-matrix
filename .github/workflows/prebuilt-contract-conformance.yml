@@ -1,0 +1,33 @@
+name: prebuilt contract conformance
+
+on:
+  pull_request:
+    paths:
+      - "prebuilt-contract/**"
+      - ".github/workflows/prebuilt-contract-conformance.yml"
+  push:
+    branches: [agent/prebuilt-contract-conformance-v1]
+    paths:
+      - "prebuilt-contract/**"
+      - ".github/workflows/prebuilt-contract-conformance.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prebuilt-contract-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  conformance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out test harness
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          show-progress: false
+
+      - name: Run pinned producer contract and adversarial manifests
+        run: python3 prebuilt-contract/test_contract.py
