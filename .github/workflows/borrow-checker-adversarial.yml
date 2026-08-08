@@ -92,7 +92,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test -z "$(git status --porcelain=v1 --untracked-files=all)"
+          test -z "$(git status --porcelain=v1 --untracked-files=all -- . ':(exclude)product' ':(exclude)product/**')"
           test -z "$(git -C product status --porcelain=v1 --untracked-files=all)"
 
       - name: Upload commit-addressed adversarial evidence
