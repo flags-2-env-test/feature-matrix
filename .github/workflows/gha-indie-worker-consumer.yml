@@ -1,0 +1,82 @@
+name: gha-indie-worker consumer conformance
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/gha-indie-worker-consumer.yml"
+      - "gha-indie-worker-consumer/**"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/gha-indie-worker-consumer.yml"
+      - "gha-indie-worker-consumer/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GHA_INDIE_WORKER_SHA: 8e6be9ce13d07caf189bd4cdd57cb39a019d7b31
+  RUST_TOOLCHAIN: "1.97.0"
+
+jobs:
+  consumer:
+    name: Consumer contract (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-24.04
+          - windows-2025
+          - macos-15
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    env:
+      CARGO_TARGET_DIR: ${{ runner.temp }}/gha-indie-worker-target
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - name: Check out exact consumer revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Check out exact worker candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: gha-indie-worker/gha-indie-worker.rs
+          ref: ${{ env.GHA_INDIE_WORKER_SHA }}
+          path: .gha-indie-worker
+          persist-credentials: false
+
+      - name: Install pinned Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install ${{ env.RUST_TOOLCHAIN }} --profile minimal
+
+      - name: Parse the independent harness
+        run: >-
+          python -c "import ast,pathlib;
+          ast.parse(pathlib.Path('gha-indie-worker-consumer/verify_consumer_contract.py').read_text(encoding='utf-8'))"
+
+      - name: Run external binding and scheduler conformance
+        run: >-
+          python gha-indie-worker-consumer/verify_consumer_contract.py
+          --worker-dir .gha-indie-worker
+          --consumer-commit "${{ github.event.pull_request.head.sha || github.sha }}"
+          --evidence "${{ runner.temp }}/gha-indie-worker-consumer-evidence.json"
+
+      - name: Verify tracked source remains unchanged
+        run: >-
+          python -c "import subprocess;
+          roots=['.', '.gha-indie-worker'];
+          commands=[['git','-C',root,'diff','--exit-code'] for root in roots]
+          +[['git','-C',root,'diff','--cached','--exit-code'] for root in roots];
+          [subprocess.run(command,check=True) for command in commands]"
