@@ -1,0 +1,112 @@
+name: Native worker exact-checkout canary
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/native-worker-exact-checkout-canary.yml"
+      - "native-worker-exact-checkout/**"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/native-worker-exact-checkout-canary.yml"
+      - "native-worker-exact-checkout/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GHA_INDIE_WORKER_SHA: 4ff9865bc71c047bbfad8fdf797a3545b19f85de
+  PYTHONDONTWRITEBYTECODE: "1"
+
+jobs:
+  consumer:
+    name: Consumer exact checkout (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            platform: linux
+            architecture: x64
+          - os: windows-2025
+            platform: windows
+            architecture: x64
+          - os: macos-15
+            platform: macos
+            architecture: arm64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    steps:
+      - name: Check out exact consumer revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Check out exact worker candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: gha-indie-worker/gha-indie-worker.rs
+          ref: ${{ env.GHA_INDIE_WORKER_SHA }}
+          path: .gha-indie-worker
+          persist-credentials: false
+
+      - name: Install pinned Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Verify immutable worker candidate and policy
+        run: >-
+          python -c "import json,pathlib,subprocess;
+          expected='${{ env.GHA_INDIE_WORKER_SHA }}';
+          actual=subprocess.run(['git','-C','.gha-indie-worker','rev-parse','HEAD'],check=True,text=True,stdout=subprocess.PIPE).stdout.strip();
+          assert actual==expected;
+          policy=json.loads(pathlib.Path('.gha-indie-worker/policy/native-worker-execution-v1.json').read_text(encoding='utf-8'));
+          assert policy['productionReadinessClaimed'] is False;
+          assert policy['checkout']['exactLowercaseCommitSha'] is True;
+          assert policy['checkout']['fallbackBranchOrTag'] is False"
+
+      - name: Run worker handoff and checkout corpus externally
+        working-directory: .gha-indie-worker
+        run: >-
+          python -m unittest -v
+          tests/test_native_worker_handoff.py
+          tests/test_native_worker_checkout.py
+          tests/test_native_worker_handoff_integration.py
+
+      - name: Checkout this consumer through the worker boundary
+        run: >-
+          python .gha-indie-worker/tests/live_native_worker_checkout.py
+          --repository-url "https://github.com/${{ github.repository }}.git"
+          --commit-sha "${{ github.event.pull_request.head.sha || github.sha }}"
+          --workspace "${{ runner.temp }}/external-native-worker-checkout"
+          --evidence "${{ runner.temp }}/external-native-worker-evidence.json"
+          --platform "${{ matrix.platform }}"
+          --architecture "${{ matrix.architecture }}"
+
+      - name: Ratchet consumer evidence
+        run: >-
+          python -c "import json,os,pathlib;
+          value=json.loads((pathlib.Path(os.environ['RUNNER_TEMP'])/'external-native-worker-evidence.json').read_text(encoding='utf-8'));
+          expected='${{ github.event.pull_request.head.sha || github.sha }}';
+          assert value['requestedCommitSha']==expected==value['resolvedCommitSha'];
+          assert value['detachedHead'] is True;
+          assert value['remotes']==['origin'];
+          assert value['submoduleGitlinks']==[];
+          assert value['originUrl']=='https://github.com/${{ github.repository }}.git';
+          assert value['evidenceDigest'].startswith('sha256:')"
+
+      - name: Verify both tracked checkouts remain unchanged
+        run: >-
+          python -c "import subprocess;
+          roots=['.', '.gha-indie-worker'];
+          commands=[['git','-C',root,'diff','--exit-code'] for root in roots]
+          +[['git','-C',root,'diff','--cached','--exit-code'] for root in roots];
+          [subprocess.run(command,check=True) for command in commands]"
