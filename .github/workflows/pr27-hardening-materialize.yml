@@ -50,7 +50,7 @@ jobs:
             > /tmp/test_pr27.py
           printf '%s  %s\n' "${SCRIPT_SHA256}" /tmp/test_pr27.py | sha256sum -c -
           install -m 0755 /tmp/test_pr27.py pr27-hardening/test_pr27.py
-          python3 -m py_compile pr27-hardening/test_pr27.py
+          PYTHONDONTWRITEBYTECODE=1 python3 -m py_compile pr27-hardening/test_pr27.py
 
           candidate="$(tr -d '[:space:]' < pr27-hardening/candidate.sha)"
           [[ "${candidate}" =~ ^[0-9a-f]{40}$ ]]
@@ -69,6 +69,7 @@ jobs:
           set -euo pipefail
           rm -rf .github/agent-carriers/pr27-hardening
           rm .github/workflows/pr27-hardening-materialize.yml
+          rm -rf pr27-hardening/__pycache__
 
           git add -A
           git diff --cached --check
