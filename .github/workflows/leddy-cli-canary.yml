@@ -75,8 +75,11 @@ jobs:
           cargo build --locked --release --manifest-path leddy-cli/Cargo.toml --bin leddy
 
       - name: Exercise flags-2-env contract through Leddy
+        env:
+          LEDDY_FLAGS_CONFIG: ${{ github.workspace }}/leddy-cli/.cli-flags.toml
         run: |
           set -o pipefail
+          test -f "$LEDDY_FLAGS_CONFIG"
           bash harness/scripts/leddy-cli-canary.sh \
             "$GITHUB_WORKSPACE/leddy-cli/target/release/leddy" \
             2>&1 | tee "$RUNNER_TEMP/leddy-cli-canary.log"
