@@ -3,6 +3,15 @@
   "workerRepository": "gha-indie-worker/gha-indie-worker.rs",
   "workerCommit": "23244abcb2c3a5bd8aa60588ff64fce3efd5445c",
   "consumerRepository": "flags-2-env-test/feature-matrix",
+  "submoduleNegativeFixture": {
+    "repository": "flags-2-env-test/feature-matrix",
+    "commitSource": "exact canary pull-request head",
+    "expectedErrorCode": "submodule_gitlink_forbidden"
+  },
+  "submoduleFreePositiveFixture": {
+    "repository": "flags-2-env-test/sops-just",
+    "commit": "933a239388449901bf8cccfd3db5c4d79fdec039"
+  },
   "referenceOperatingSystems": [
     "ubuntu-24.04",
     "windows-2025",
@@ -14,7 +23,8 @@
     "detached-head",
     "one-origin-remote",
     "no-ref-fallback",
-    "no-submodule-gitlinks",
+    "submodule-gitlinks-fail-closed",
+    "submodule-free-fixture-succeeds",
     "no-persisted-auth-config",
     "requested-sha-equals-resolved-sha",
     "tracked-source-unchanged"
