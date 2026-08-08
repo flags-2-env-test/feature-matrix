@@ -2,13 +2,14 @@
 
 This test-org lane independently consumes the candidate native worker boundary
 from `gha-indie-worker/gha-indie-worker.rs` at exact commit
-`23244abcb2c3a5bd8aa60588ff64fce3efd5445c`.
+`3ad79f6cb48de5d380372c37a063a0abadbe456d`.
 
 On fixed Ubuntu 24.04, Windows Server 2025, and macOS 15 references, it:
 
 1. checks out consumer and worker repositories at exact immutable commits with
    persisted checkout authentication disabled;
-2. verifies the pinned worker commit and machine-readable policy;
+2. verifies the pinned worker commit and machine-readable policy, including
+   injected Git-config/exec-path scrubbing and disabled replace objects;
 3. runs the worker handoff, negative, checkout, and scheduler-integration corpus
    from outside the worker repository;
 4. asks the worker boundary to clone this canary repository's exact pull-request
@@ -17,13 +18,17 @@ On fixed Ubuntu 24.04, Windows Server 2025, and macOS 15 references, it:
 5. asks the same boundary to clone submodule-free
    `flags-2-env-test/sops-just` at exact commit
    `933a239388449901bf8cccfd3db5c4d79fdec039` and requires success;
-6. ratchets requested SHA equals resolved detached `HEAD`, one exact `origin`, no
-   submodule gitlinks in the positive fixture, and digest-bound evidence; and
+6. independently requires the exact evidence field set and recomputes the
+   evidence digest over every field, in addition to checking requested SHA equals
+   resolved detached `HEAD`, one exact `origin`, and no positive-fixture gitlinks;
+   and
 7. verifies both tracked source trees remain unchanged.
 
 This split matters: the policy does not silently ignore a repository feature it
 does not support, while a separate fixture proves that the supported path still
-works on all three operating-system references.
+works on all three operating-system references. The independent digest ratchet
+also prevents a wrapper from appending unbound metadata after the worker has
+created its evidence record.
 
 The lane does not use the GitHub PAT, Linear token, Cloudflare token, R2 keys,
 repository secrets, signing material, or a persistent external service.
