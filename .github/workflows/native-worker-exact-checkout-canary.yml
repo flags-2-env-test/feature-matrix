@@ -21,7 +21,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GHA_INDIE_WORKER_SHA: 4ff9865bc71c047bbfad8fdf797a3545b19f85de
+  GHA_INDIE_WORKER_SHA: 23244abcb2c3a5bd8aa60588ff64fce3efd5445c
   PYTHONDONTWRITEBYTECODE: "1"
 
 jobs:
