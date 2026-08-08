@@ -4,11 +4,20 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import shutil
 import subprocess
 import sys
 from pathlib import Path
+
+EVIDENCE_KEYS = {
+    "schemaVersion", "evidenceDigest", "handoffDigest", "requestId",
+    "requestDigest", "leaseId", "hostId", "repositoryUrl",
+    "requestedCommitSha", "resolvedCommitSha", "treeSha", "originUrl",
+    "remotes", "detachedHead", "submoduleGitlinks", "contextDir",
+    "profile", "profileDigest", "runner", "startedAt", "completedAt",
+}
 
 
 def run(command: list[str]) -> subprocess.CompletedProcess[str]:
@@ -19,6 +28,16 @@ def run(command: list[str]) -> subprocess.CompletedProcess[str]:
         stderr=subprocess.PIPE,
         check=False,
     )
+
+
+def digest(value: object) -> str:
+    payload = json.dumps(
+        value,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+    ).encode()
+    return "sha256:" + hashlib.sha256(payload).hexdigest()
 
 
 def live_command(
@@ -110,6 +129,13 @@ def main() -> int:
         )
 
     value = json.loads(args.evidence.read_text(encoding="utf-8"))
+    if set(value) != EVIDENCE_KEYS:
+        raise RuntimeError(
+            f"success evidence field set drifted: {sorted(set(value) ^ EVIDENCE_KEYS)}"
+        )
+    unsigned = {key: item for key, item in value.items() if key != "evidenceDigest"}
+    if value["evidenceDigest"] != digest(unsigned):
+        raise RuntimeError("success evidence digest does not cover the complete record")
     if value["requestedCommitSha"] != args.success_commit_sha:
         raise RuntimeError("requested success SHA drifted")
     if value["resolvedCommitSha"] != args.success_commit_sha:
@@ -120,8 +146,6 @@ def main() -> int:
         raise RuntimeError("success checkout did not retain the exact detached one-origin contract")
     if value["submoduleGitlinks"] != []:
         raise RuntimeError("success fixture unexpectedly contains gitlinks")
-    if not value["evidenceDigest"].startswith("sha256:"):
-        raise RuntimeError("success evidence digest is invalid")
 
     summary = {
         "schemaVersion": "flags-2-env-test.native-worker-canary-evidence.v1",
