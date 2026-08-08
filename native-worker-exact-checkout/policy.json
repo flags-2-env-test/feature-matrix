@@ -1,7 +1,7 @@
 {
   "schemaVersion": "flags-2-env-test.native-worker-exact-checkout-canary.v1",
   "workerRepository": "gha-indie-worker/gha-indie-worker.rs",
-  "workerCommit": "23244abcb2c3a5bd8aa60588ff64fce3efd5445c",
+  "workerCommit": "3ad79f6cb48de5d380372c37a063a0abadbe456d",
   "consumerRepository": "flags-2-env-test/feature-matrix",
   "submoduleNegativeFixture": {
     "repository": "flags-2-env-test/feature-matrix",
@@ -26,7 +26,11 @@
     "submodule-gitlinks-fail-closed",
     "submodule-free-fixture-succeeds",
     "no-persisted-auth-config",
+    "inherited-git-config-and-exec-path-scrubbed",
+    "replace-objects-disabled",
     "requested-sha-equals-resolved-sha",
+    "exact-evidence-field-set",
+    "evidence-digest-covers-complete-record",
     "tracked-source-unchanged"
   ],
   "repositorySecretsRequired": false,
