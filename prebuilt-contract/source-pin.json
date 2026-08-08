@@ -2,7 +2,7 @@
   "schema": "flags-2-env-test/source-pin/v1",
   "repository": "ORESoftware/flags-2-env",
   "pull_request": 32,
-  "commit": "45938c050d1a5592de27fe221a5fa6a59de02307",
+  "commit": "e6e7b727cc706926d3328acc09f2dcf7f7ac35a3",
   "files": [
     "prebuilt/targets.json",
     "prebuilt/manifest.schema.json",
