@@ -92,13 +92,16 @@ jobs:
           $install = & $vswhere -latest -property installationPath
           if (-not $install) { throw "Visual Studio installation not found" }
           $devcmd = Join-Path $install "Common7\Tools\VsDevCmd.bat"
-          $command = @(
-            "`"$devcmd`" -arch=x64 -host_arch=x64",
-            "cl /nologo /std:c11 /W4 /WX /D_CRT_SECURE_NO_WARNINGS",
-            "/Isrc src\parser.c src\terminal_context.c src\main.c",
-            "/Febuild\flags2env.exe shell32.lib"
-          ) -join " && "
-          cmd.exe /d /s /c $command
+          $environment = cmd.exe /d /s /c "`"$devcmd`" -arch=x64 -host_arch=x64 >nul && set"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          foreach ($line in $environment) {
+            if ($line -match '^([^=]+)=(.*)$') {
+              Set-Item -Path "Env:$($matches[1])" -Value $matches[2]
+            }
+          }
+          & cl.exe /nologo /std:c11 /W4 /WX /D_CRT_SECURE_NO_WARNINGS `
+            /Isrc src\parser.c src\terminal_context.c src\main.c `
+            /Febuild\flags2env.exe shell32.lib
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           & .\build\flags2env.exe --help | Out-Null
           $context = & .\build\flags2env.exe context | ConvertFrom-Json
