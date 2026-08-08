@@ -4,15 +4,22 @@ This independent `flags-2-env-test` lane checks an exact
 `ORESoftware/flags-2-env` commit without using the product repository's own
 workflow definitions or a vendored submodule that may predate the checker.
 
-Initial product candidate:
+Repaired product candidate:
+
+```text
+PRODUCT_SHA_PLACEHOLDER
+```
+
+Initial (defective) candidate, retained for the record:
 
 ```text
 d5a09c37e8b2a041dd2590b72b1129d1dbf28d42
 ```
 
 The candidate's native sanitizer matrix, custom self-test, Kani proof, CBMC
-model, and Z3 obligations are already green. Those gates do not currently
-exercise two analyzer-boundary failures found during adversarial review.
+model, and Z3 obligations were green throughout — including while all three
+bypasses below were live. That is the point of this lane: those gates prove
+the analyzer's abstract state machine, not the analyzer's boundaries.
 
 ## Required black-box cases
 
