@@ -1,0 +1,69 @@
+name: flags-2-env PR 33 feature matrix
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr33-feature-matrix-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  feature-matrix:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout feature fixture
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Checkout exact flags-2-env candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ORESoftware/flags-2-env
+          ref: 652bc410da7e2c85e837a9382a98201568452d63
+          path: candidate
+          persist-credentials: false
+
+      - name: Prove candidate has no tracked plaintext dotenv paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          git -C candidate ls-files -z | python3 -c '
+          import sys
+          paths = [p for p in sys.stdin.buffer.read().split(b"\0") if p]
+          bad = [p for p in paths if p == b".env" or p.endswith(b"/.env") or p.endswith(b".env")]
+          if bad:
+              print("tracked plaintext dotenv paths remain:", file=sys.stderr)
+              for path in bad:
+                  print(path.decode("utf-8", "replace"), file=sys.stderr)
+              raise SystemExit(1)
+          '
+
+      - name: Replace vendored dependency from fixture manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          vendor="$(python3 - <<'PY'
+          import pathlib, tomllib
+          cfg = tomllib.loads(pathlib.Path('.zpkg.toml').read_text())
+          assert list(cfg['dependencies']) == ['oresoftware/flags-2-env']
+          print(pathlib.PurePosixPath(cfg['install']['dir']) / 'oresoftware' / 'flags-2-env')
+          PY
+          )"
+          rm -rf "$vendor"
+          mkdir -p "$vendor"
+          rsync -a --exclude '.git' candidate/ "$vendor/"
+          test -f "$vendor/src/parser.c"
+          printf 'candidate=%s\nvendor=%s\n' \
+            "$(git -C candidate rev-parse HEAD)" "$vendor" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Build feature-matrix image
+        run: docker build --tag flags2env-pr33-feature-matrix .
+
+      - name: Run feature matrix
+        run: docker run --rm flags2env-pr33-feature-matrix
