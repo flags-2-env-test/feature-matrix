@@ -21,7 +21,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  GHA_INDIE_WORKER_SHA: 23244abcb2c3a5bd8aa60588ff64fce3efd5445c
+  GHA_INDIE_WORKER_SHA: 3ad79f6cb48de5d380372c37a063a0abadbe456d
   SUCCESS_FIXTURE_REPOSITORY: https://github.com/flags-2-env-test/sops-just.git
   SUCCESS_FIXTURE_SHA: 933a239388449901bf8cccfd3db5c4d79fdec039
   PYTHONDONTWRITEBYTECODE: "1"
@@ -73,7 +73,10 @@ jobs:
           policy=json.loads(pathlib.Path('.gha-indie-worker/policy/native-worker-execution-v1.json').read_text(encoding='utf-8'));
           assert policy['productionReadinessClaimed'] is False;
           assert policy['checkout']['exactLowercaseCommitSha'] is True;
-          assert policy['checkout']['fallbackBranchOrTag'] is False"
+          assert policy['checkout']['fallbackBranchOrTag'] is False;
+          assert policy['gitEnvironment']['inheritedInjectedConfig'] is False;
+          assert policy['gitEnvironment']['replaceObjects'] is False;
+          assert policy['evidence']['contentDigestCoversEveryField'] is True"
 
       - name: Compile independent canary
         run: python -m py_compile native-worker-exact-checkout/run_canary.py
