@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "profile": "test-consumer",
+  "productionPeer": "flags-2-env",
+  "sourceRepository": "ORESoftware/flags-2-env",
+  "packageIdentity": "oresoftware/flags-2-env",
+  "versionRequirement": "^0.2.0",
+  "installDirectory": ".vendor/.zed",
+  "submodulePath": ".vendor/.zed/oresoftware/flags-2-env",
+  "submoduleUrl": "https://github.com/ORESoftware/flags-2-env",
+  "ownershipMode": "same-path-adopted-workspace",
+  "physicalCheckoutCount": 1,
+  "credentialClass": "none"
+}
