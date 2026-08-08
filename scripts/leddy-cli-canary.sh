@@ -43,12 +43,12 @@ grep -F -- '--at' "$work/stdout"
 
 # Environment values feed the same contract. Preview is offline, so this tests
 # precedence without needing any service or credential.
-LEDDY_MATRIX_WIDTH=48 LEDDY_MATRIX_HEIGHT=8 LEDDY_SCROLL_SPEED=18 \
+LEDDY_WIDTH=48 LEDDY_HEIGHT=8 LEDDY_SCROLL_SPEED=18 \
   "$leddy" preview --text HI --at 1000 >"$work/env-preview"
 grep -F '48x8' "$work/env-preview"
 
 # Explicit flags must override environment values.
-LEDDY_MATRIX_WIDTH=48 LEDDY_MATRIX_HEIGHT=8 LEDDY_SCROLL_SPEED=18 \
+LEDDY_WIDTH=48 LEDDY_HEIGHT=8 LEDDY_SCROLL_SPEED=18 \
   "$leddy" preview --text HI --width 64 --height 10 --speed 30 --at 1000 \
   >"$work/flag-preview"
 grep -F '64x10' "$work/flag-preview"
