@@ -1,0 +1,24 @@
+{
+  "schemaVersion": "flags-2-env-test.native-worker-exact-checkout-canary.v1",
+  "workerRepository": "gha-indie-worker/gha-indie-worker.rs",
+  "workerCommit": "4ff9865bc71c047bbfad8fdf797a3545b19f85de",
+  "consumerRepository": "flags-2-env-test/feature-matrix",
+  "referenceOperatingSystems": [
+    "ubuntu-24.04",
+    "windows-2025",
+    "macos-15"
+  ],
+  "requiredAssertions": [
+    "active-lease-dispatch-binding",
+    "exact-lowercase-sha",
+    "detached-head",
+    "one-origin-remote",
+    "no-ref-fallback",
+    "no-submodule-gitlinks",
+    "no-persisted-auth-config",
+    "requested-sha-equals-resolved-sha",
+    "tracked-source-unchanged"
+  ],
+  "repositorySecretsRequired": false,
+  "physicalFleetReadinessClaimed": false
+}
