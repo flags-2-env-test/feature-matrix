@@ -1,0 +1,11 @@
+{
+  "schema": "flags-2-env-test/source-pin/v1",
+  "repository": "ORESoftware/flags-2-env",
+  "pull_request": 32,
+  "commit": "1b0f7f6c0160cf8afb0d0ae536df85585af66b15",
+  "files": [
+    "prebuilt/targets.json",
+    "prebuilt/manifest.schema.json",
+    "scripts/validate-prebuilt-contract.py"
+  ]
+}
