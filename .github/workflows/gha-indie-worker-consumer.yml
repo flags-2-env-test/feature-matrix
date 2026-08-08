@@ -36,7 +36,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 25
     env:
-      CARGO_TARGET_DIR: ${{ runner.temp }}/gha-indie-worker-target
       PYTHONDONTWRITEBYTECODE: "1"
     steps:
       - name: Check out exact consumer revision
@@ -67,6 +66,8 @@ jobs:
           ast.parse(pathlib.Path('gha-indie-worker-consumer/verify_consumer_contract.py').read_text(encoding='utf-8'))"
 
       - name: Run external binding and scheduler conformance
+        env:
+          CARGO_TARGET_DIR: ${{ runner.temp }}/gha-indie-worker-target
         run: >-
           python gha-indie-worker-consumer/verify_consumer_contract.py
           --worker-dir .gha-indie-worker
