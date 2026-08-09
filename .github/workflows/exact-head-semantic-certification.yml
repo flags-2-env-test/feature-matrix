@@ -1,0 +1,156 @@
+name: exact-head semantic certification
+
+on:
+  pull_request:
+    paths:
+      - "candidate-contract/**"
+      - ".github/workflows/exact-head-semantic-certification.yml"
+  push:
+    branches: [main]
+    paths:
+      - "candidate-contract/**"
+      - ".github/workflows/exact-head-semantic-certification.yml"
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: "Optional full 40-character ORESoftware/flags-2-env commit SHA"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: exact-head-semantic-certification-${{ github.ref }}-${{ inputs.candidate_sha || 'pinned' }}
+  cancel-in-progress: true
+
+jobs:
+  resolve-source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      repository: ${{ steps.source.outputs.repository }}
+      sha: ${{ steps.source.outputs.sha }}
+    steps:
+      - name: Check out independent contract
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          show-progress: false
+
+      - name: Resolve and validate immutable source
+        id: source
+        env:
+          CANDIDATE_SHA_OVERRIDE: ${{ inputs.candidate_sha || '' }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+
+          with open("candidate-contract/source.json", encoding="utf-8") as stream:
+              source = json.load(stream)
+
+          repository = source.get("repository", "")
+          if repository != "ORESoftware/flags-2-env":
+              raise SystemExit(f"unsupported candidate repository: {repository!r}")
+
+          sha = os.environ.get("CANDIDATE_SHA_OVERRIDE", "").strip() or source.get("sha", "")
+          if not re.fullmatch(r"[0-9a-f]{40}", sha):
+              raise SystemExit("candidate SHA must be exactly 40 lowercase hexadecimal characters")
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"repository={repository}\n")
+              output.write(f"sha={sha}\n")
+
+          print(f"certifying {repository}@{sha}")
+          PY
+
+  upstream-suite:
+    needs: resolve-source
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-14]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    steps:
+      - name: Check out immutable producer head
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: ${{ needs.resolve-source.outputs.repository }}
+          ref: ${{ needs.resolve-source.outputs.sha }}
+          path: candidate
+          fetch-depth: 1
+          persist-credentials: false
+          show-progress: false
+
+      - name: Verify exact checkout
+        env:
+          EXPECTED_SHA: ${{ needs.resolve-source.outputs.sha }}
+        run: |
+          set -euo pipefail
+          actual="$(git -C candidate rev-parse HEAD)"
+          test "${actual}" = "${EXPECTED_SHA}"
+          test -z "$(git -C candidate status --porcelain)"
+
+      - name: Install macOS test utilities
+        if: runner.os == 'macOS'
+        run: |
+          brew install coreutils
+          echo "$(brew --prefix coreutils)/libexec/gnubin" >> "${GITHUB_PATH}"
+
+      - name: Run producer build and tests
+        run: |
+          set -euo pipefail
+          make -C candidate clean all
+          make -C candidate test
+
+  external-feature-matrix:
+    needs: resolve-source
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-14]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - name: Check out independent contract
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          show-progress: false
+
+      - name: Check out immutable producer head
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: ${{ needs.resolve-source.outputs.repository }}
+          ref: ${{ needs.resolve-source.outputs.sha }}
+          path: candidate
+          fetch-depth: 1
+          persist-credentials: false
+          show-progress: false
+
+      - name: Verify exact checkout
+        env:
+          EXPECTED_SHA: ${{ needs.resolve-source.outputs.sha }}
+        run: |
+          set -euo pipefail
+          actual="$(git -C candidate rev-parse HEAD)"
+          test "${actual}" = "${EXPECTED_SHA}"
+          test -z "$(git -C candidate status --porcelain)"
+
+      - name: Install macOS test utilities
+        if: runner.os == 'macOS'
+        run: |
+          brew install coreutils
+          echo "$(brew --prefix coreutils)/libexec/gnubin" >> "${GITHUB_PATH}"
+
+      - name: Build candidate CLI
+        run: make -C candidate clean cli
+
+      - name: Run independent semantic matrix
+        env:
+          FLAGS2ENV_CLI: ${{ github.workspace }}/candidate/build/flags2env
+          FIXTURE_ROOT: ${{ github.workspace }}
+        run: ./run.sh
