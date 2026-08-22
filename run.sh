@@ -21,7 +21,7 @@ fail=0
 # cleared. Otherwise a stray file or exported variable silently rewrites the
 # expected map and the fixture reports the wrong thing.
 clean() {
-  env -u PORT -u DEBUG -u APP_ENV -u COLOR -u FLAGS2ENV_DOTENV "$@"
+  env -u PORT -u DEBUG -u VERBOSE -u APP_ENV -u COLOR -u FLAGS2ENV_DOTENV "$@"
 }
 
 check() {
@@ -94,6 +94,26 @@ if command -v mkfifo >/dev/null 2>&1 && mkfifo .env 2>/dev/null; then
     "$(clean timeout 10 "$CLI" demo)"
   rm -f .env
 fi
+
+# ---------------------------------------------------------- short flag bundles
+#
+# The candidate parser must accept both established boolean-only groups and
+# getopt-style groups whose final short consumes a value. Inline and separated
+# value spellings are separate cases so a parser cannot pass by supporting only
+# one of them.
+
+cd "$ROOT/scenarios/bundles" || exit 1
+check "boolean-only short bundle" \
+  '{"DEBUG":"true","VERBOSE":"true"}' \
+  "$(clean "$CLI" demo -dv)"
+
+check "mixed short bundle consumes a separated value" \
+  '{"DEBUG":"true","VERBOSE":"true","PORT":"8181"}' \
+  "$(clean "$CLI" demo -dvp 8181)"
+
+check "mixed short bundle consumes an inline value" \
+  '{"DEBUG":"true","VERBOSE":"true","PORT":"8282"}' \
+  "$(clean "$CLI" demo -dvp8282)"
 
 # ------------------------------------------------------- order-of-preference
 #
