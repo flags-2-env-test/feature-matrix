@@ -1,0 +1,14 @@
+[flags.debug]
+env = "DEBUG"
+short = "d"
+type = "bool"
+
+[flags.verbose]
+env = "VERBOSE"
+short = "v"
+type = "bool"
+
+[flags.port]
+env = "PORT"
+short = "p"
+type = "integer"

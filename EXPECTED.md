@@ -39,6 +39,14 @@ no lookup beside an explicitly passed `--config`. A symlink is followed, but
 only when it resolves to a regular file: a fifo left at `./.env` would otherwise
 park a blocking `open()` and hang the command outright. Both are asserted.
 
+## Short flag bundles
+
+The parser accepts a group of boolean shorts such as `-dv`. A value-taking
+short may end the group and consumes either the next argument (`-dvp 8181`) or
+the remainder of the same token (`-dvp8282`). The expected maps prove every
+leading boolean was applied and the final value reached its declared env key;
+the cases do not merely assert that the process exited successfully.
+
 ## Per-key ordering
 
 `[order-of-preference]` re-ranks the sources for individual env keys:
@@ -81,7 +89,7 @@ aliases; zsh completion is a `#compdef` script.
 
 ```console
 $ docker build -t feature-matrix . && docker run --rm feature-matrix
-feature-matrix OK: 25 cases
+feature-matrix OK: 28 cases
 ```
 
 Against a working copy instead of the vendored submodule:
