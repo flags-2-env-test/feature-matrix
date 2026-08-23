@@ -1,2 +1,7 @@
 target/
 .vendor/.zed/oresoftware/flags-2-env/build/
+
+# >>> ores fleet hygiene — managed block, edits below are overwritten >>>
+tmp/temp/
+tmp/worktrees/
+# <<< ores fleet hygiene <<<
