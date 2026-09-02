@@ -8,13 +8,8 @@ on:
 permissions:
   contents: write
 
-concurrency:
-  group: den-3173-help-width-${{ github.ref }}
-  cancel-in-progress: false
-
 jobs:
   materialize:
-    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
