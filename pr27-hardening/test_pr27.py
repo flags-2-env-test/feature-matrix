@@ -459,16 +459,19 @@ def assert_source_and_packaging_policy(library: Path) -> None:
 
 
 def assert_help_width(binary: Path) -> None:
+    workspace = tempfile.TemporaryDirectory(prefix="f2e-help-width-")
+    root = Path(workspace.name)
+    write_tty_contract(root)
     env = controlled_env()
     env["F2E_FORCE_STDOUT_TTY"] = "0"
     env["F2E_FORCE_STDERR_TTY"] = "0"
-    result = run((binary, "--help"), env=env)
+    result = run((binary, "--help"), cwd=root, env=env)
     require(result.returncode == 0, result.stderr)
     first = result.stdout.splitlines()[0]
     require(len(first) == 80, f"piped help width is {len(first)}, expected 80")
 
     env["COLUMNS"] = "140"
-    result = run((binary, "--help"), env=env)
+    result = run((binary, "--help"), cwd=root, env=env)
     require(result.returncode == 0, result.stderr)
     first = result.stdout.splitlines()[0]
     require(len(first) == 140, f"COLUMNS=140 produced width {len(first)}")
