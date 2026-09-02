@@ -14,7 +14,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Check out exact harness branch
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ github.ref_name }}
           fetch-depth: 1
@@ -30,43 +30,16 @@ jobs:
 
           path = Path("pr27-hardening/test_pr27.py")
           source = path.read_text()
-          old = '''def assert_help_width(binary: Path) -> None:
-              env = controlled_env()
-              env["F2E_FORCE_STDOUT_TTY"] = "0"
-              env["F2E_FORCE_STDERR_TTY"] = "0"
-              result = run((binary, "--help"), env=env)
-              require(result.returncode == 0, result.stderr)
-              first = result.stdout.splitlines()[0]
-              require(len(first) == 80, f"piped help width is {len(first)}, expected 80")
-
-              env["COLUMNS"] = "140"
-              result = run((binary, "--help"), env=env)
-              require(result.returncode == 0, result.stderr)
-              first = result.stdout.splitlines()[0]
-              require(len(first) == 140, f"COLUMNS=140 produced width {len(first)}")
-'''
-          new = '''def assert_help_width(binary: Path) -> None:
-              with tempfile.TemporaryDirectory(prefix="f2e-help-width-") as tmp:
-                  root = Path(tmp)
-                  write_tty_contract(root)
-                  env = controlled_env()
-                  env["F2E_FORCE_STDOUT_TTY"] = "0"
-                  env["F2E_FORCE_STDERR_TTY"] = "0"
-                  result = run((binary, "--help"), cwd=root, env=env)
-                  require(result.returncode == 0, result.stderr)
-                  first = result.stdout.splitlines()[0]
-                  require(len(first) == 80, f"piped help width is {len(first)}, expected 80")
-
-                  env["COLUMNS"] = "140"
-                  result = run((binary, "--help"), cwd=root, env=env)
-                  require(result.returncode == 0, result.stderr)
-                  first = result.stdout.splitlines()[0]
-                  require(len(first) == 140, f"COLUMNS=140 produced width {len(first)}")
-'''
-          count = source.count(old)
-          if count != 1:
-              raise SystemExit(f"expected exactly one help-width function, found {count}")
-          path.write_text(source.replace(old, new))
+          marker = "def assert_help_width(binary: Path) -> None:\n"
+          replacement = marker + "    workspace = tempfile.TemporaryDirectory(prefix=\"f2e-help-width-\")\n    root = Path(workspace.name)\n    write_tty_contract(root)\n"
+          if source.count(marker) != 1:
+              raise SystemExit("expected exactly one help-width function")
+          source = source.replace(marker, replacement, 1)
+          old_run = 'result = run((binary, "--help"), env=env)'
+          new_run = 'result = run((binary, "--help"), cwd=root, env=env)'
+          if source.count(old_run) != 2:
+              raise SystemExit("expected exactly two help-width invocations")
+          path.write_text(source.replace(old_run, new_run))
           PY
           python3 -m py_compile pr27-hardening/test_pr27.py
           git diff --check
