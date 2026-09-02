@@ -1,10 +1,10 @@
-name: PR 27 hardening certification
+name: Canonical flags-2-env hardening certification
 
 on:
   workflow_dispatch:
     inputs:
       producer_sha:
-        description: Full immutable ORESoftware/flags-2-env commit SHA to certify
+        description: Full immutable flags-2-env/flags-2-env commit SHA to certify
         required: true
         type: string
   pull_request:
@@ -16,7 +16,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: pr27-hardening-${{ github.event.pull_request.number || github.ref }}
+  group: pr27-hardening-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -49,7 +49,7 @@ jobs:
             exit 1
           }
           echo "producer_sha=$candidate" >> "$GITHUB_OUTPUT"
-          echo "Certifying ORESoftware/flags-2-env@$candidate" >> "$GITHUB_STEP_SUMMARY"
+          echo "Certifying flags-2-env/flags-2-env@$candidate" >> "$GITHUB_STEP_SUMMARY"
 
   native:
     name: strict native build (${{ matrix.os }})
@@ -64,7 +64,7 @@ jobs:
       - name: Check out exact producer candidate
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          repository: ORESoftware/flags-2-env
+          repository: flags-2-env/flags-2-env
           ref: ${{ needs.prepare.outputs.producer_sha }}
           persist-credentials: false
           show-progress: false
@@ -116,7 +116,7 @@ jobs:
       - name: Check out exact producer candidate
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          repository: ORESoftware/flags-2-env
+          repository: flags-2-env/flags-2-env
           ref: ${{ needs.prepare.outputs.producer_sha }}
           persist-credentials: false
           show-progress: false
@@ -137,7 +137,7 @@ jobs:
           test -s "$RUNNER_TEMP/browser-dist/flags2env.wasm"
 
   producer-suite:
-    name: producer suite on current feature merge
+    name: producer suite on current canonical candidate
     needs: prepare
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -145,7 +145,7 @@ jobs:
       - name: Check out exact producer candidate
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          repository: ORESoftware/flags-2-env
+          repository: flags-2-env/flags-2-env
           ref: ${{ needs.prepare.outputs.producer_sha }}
           persist-credentials: false
           show-progress: false
@@ -181,7 +181,7 @@ jobs:
       - name: Check out exact producer candidate
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          repository: ORESoftware/flags-2-env
+          repository: flags-2-env/flags-2-env
           ref: ${{ needs.prepare.outputs.producer_sha }}
           path: producer
           persist-credentials: false
@@ -222,7 +222,7 @@ jobs:
         run: |
           set -euo pipefail
           {
-            echo "### flags-2-env PR 27 independent certification"
+            echo "### canonical flags-2-env independent certification"
             echo
             echo "- Candidate: \`$SHA\`"
             echo "- Native: $NATIVE"
