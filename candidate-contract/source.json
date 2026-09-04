@@ -1,0 +1,12 @@
+{
+  "repository": "ORESoftware/flags-2-env",
+  "sha": "11e61b2a1c8a1c21132525a2bdb02b2700b502b2",
+  "source_pr": 27,
+  "purpose": "behavioral reference for semantic reconstruction on current main",
+  "merge_policy": "certification is evidence only; do not merge the conflicted source branch as-is",
+  "feature_slices": [
+    "dotenv file ordering and doctor diagnostics",
+    "terminal context and requires_tty enforcement",
+    "Rust bundled parser parity and fixture hardening"
+  ]
+}
