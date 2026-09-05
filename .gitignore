@@ -1,2 +1,8 @@
 target/
 .vendor/.zed/oresoftware/flags-2-env/build/
+
+# Repository-local temporary data and authorized Git worktrees
+tmp
+temp
+tmp/worktrees
+temp/worktrees
