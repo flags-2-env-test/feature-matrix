@@ -1,5 +1,6 @@
-# Independent flags-2-env-test canary for the Shared Auth CLI contract.
-# The authoritative consumer file remains shared-auth/shared-auth-cli/.cli-flags.toml.
+# Mirror of shared-auth/shared-auth-cli's DEN-606 CLI contract.
+# This is downstream regression evidence for flags-2-env, not the authority for
+# the Shared Auth CLI. Update it when that consumer changes its root contract.
 
 [parse]
 allow_unknown = false
