@@ -1,0 +1,9 @@
+{
+  "schema": "flags-2-env-test.shared-auth-cli-canary/v1",
+  "producerRepository": "flags-2-env/flags-2-env",
+  "producerRevision": "c7f720d7501921b5a1b42c395b5a6fe271f24332",
+  "producerFixture": "tests/downstream-shared-auth-cli/.cli-flags.toml",
+  "producerFixtureBlob": "aabcc3b081cafa2cac01f72355e7ca380b562660",
+  "consumerRepository": "shared-auth/shared-auth-cli",
+  "role": "independent-test-canary-not-authority"
+}
