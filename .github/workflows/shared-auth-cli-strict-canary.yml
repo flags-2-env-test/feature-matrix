@@ -1,0 +1,70 @@
+name: Shared Auth CLI strict flags canary
+
+on:
+  pull_request:
+    paths:
+      - 'scenarios/shared-auth-cli/**'
+      - '.github/workflows/shared-auth-cli-strict-canary.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'scenarios/shared-auth-cli/**'
+      - '.github/workflows/shared-auth-cli-strict-canary.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: shared-auth-cli-strict-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  canary:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-14]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact test head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          path: canary
+          persist-credentials: false
+
+      - name: Verify exact test head
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git -C canary rev-parse HEAD)" = "$EXPECTED_SHA"
+
+      - name: Check out exact merged flags-2-env producer
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          repository: flags-2-env/flags-2-env
+          ref: c7f720d7501921b5a1b42c395b5a6fe271f24332
+          path: producer
+          persist-credentials: false
+
+      - name: Verify producer revision
+        shell: bash
+        run: test "$(git -C producer rev-parse HEAD)" = c7f720d7501921b5a1b42c395b5a6fe271f24332
+
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.12'
+          cache: ''
+
+      - name: Build canonical native parser
+        working-directory: producer
+        run: make cli
+
+      - name: Run positive and adversarial Shared Auth CLI contract cases
+        working-directory: canary
+        env:
+          FLAGS2ENV_CLI: ${{ github.workspace }}/producer/build/flags2env
+        run: python3 scenarios/shared-auth-cli/test_canary.py
