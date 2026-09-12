@@ -1,0 +1,35 @@
+{
+  "schemaVersion": "flags-2-env-test.gha-indie-worker-consumer-policy.v1",
+  "workerCommit": "8e6be9ce13d07caf189bd4cdd57cb39a019d7b31",
+  "consumerRepository": "https://github.com/flags-2-env-test/feature-matrix.git",
+  "referenceOperatingSystems": [
+    "ubuntu-24.04",
+    "windows-2025",
+    "macos-15"
+  ],
+  "dispatchTargets": [
+    {
+      "platform": "linux",
+      "architecture": "x64",
+      "profile": "linux-rust"
+    },
+    {
+      "platform": "windows",
+      "architecture": "x64",
+      "profile": "windows-msvc"
+    },
+    {
+      "platform": "macos",
+      "architecture": "arm64",
+      "profile": "macos-xcode"
+    }
+  ],
+  "requiredNegativeGates": [
+    "unsupported_runner_label",
+    "profile_runner_target_mismatch",
+    "caller_steps_not_executable",
+    "native_capability_required"
+  ],
+  "secretsRequired": false,
+  "productionFleetReadinessClaimed": false
+}
