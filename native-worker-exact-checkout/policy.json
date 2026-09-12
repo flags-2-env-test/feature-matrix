@@ -1,0 +1,38 @@
+{
+  "schemaVersion": "flags-2-env-test.native-worker-exact-checkout-canary.v1",
+  "workerRepository": "gha-indie-worker/gha-indie-worker.rs",
+  "workerCommit": "3ad79f6cb48de5d380372c37a063a0abadbe456d",
+  "consumerRepository": "flags-2-env-test/feature-matrix",
+  "submoduleNegativeFixture": {
+    "repository": "flags-2-env-test/feature-matrix",
+    "commitSource": "exact canary pull-request head",
+    "expectedErrorCode": "submodule_gitlink_forbidden"
+  },
+  "submoduleFreePositiveFixture": {
+    "repository": "flags-2-env-test/sops-just",
+    "commit": "933a239388449901bf8cccfd3db5c4d79fdec039"
+  },
+  "referenceOperatingSystems": [
+    "ubuntu-24.04",
+    "windows-2025",
+    "macos-15"
+  ],
+  "requiredAssertions": [
+    "active-lease-dispatch-binding",
+    "exact-lowercase-sha",
+    "detached-head",
+    "one-origin-remote",
+    "no-ref-fallback",
+    "submodule-gitlinks-fail-closed",
+    "submodule-free-fixture-succeeds",
+    "no-persisted-auth-config",
+    "inherited-git-config-and-exec-path-scrubbed",
+    "replace-objects-disabled",
+    "requested-sha-equals-resolved-sha",
+    "exact-evidence-field-set",
+    "evidence-digest-covers-complete-record",
+    "tracked-source-unchanged"
+  ],
+  "repositorySecretsRequired": false,
+  "physicalFleetReadinessClaimed": false
+}
